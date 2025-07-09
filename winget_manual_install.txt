@@ -1,0 +1,17 @@
+Do this if the GUI can't open or stuck:
+
+=========================
+Winget Installation Help
+=========================
+
+To install Winget manually, follow these steps:
+
+1. Run this command in PowerShell as Administrator:
+
+powershell -Command "Invoke-WebRequest https://raw.githubusercontent.com/asheroto/winget-installer/master/winget-install.ps1 -UseBasicParsing | iex"
+
+2. That's it. After install, just run the 1 Click Software Installer again.
+
+If you're still having issues, make sure:
+- Your Windows is updated (Windows 10 1809+ or Windows 11)
+- Microsoft Store is working properly
