@@ -1,3 +1,4 @@
+![preview](https://github.com/user-attachments/assets/2f588cb6-b633-4ec9-b164-c7a252427a4d)
 # 📦 1-Click Software Installer (PowerShell GUI EXE)
 
 A lightweight GUI tool to install essential Windows software in just one click — ideal for technicians, IT support, or system setup tasks.  
