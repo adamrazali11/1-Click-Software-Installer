@@ -1,39 +1,59 @@
-﻿Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
-# =============================
-# Auto Install Winget (Fix)
-# =============================
-function Install-Winget {
-    $msg = [System.Windows.Forms.MessageBox]::Show("Winget is not installed. Do you want to install it now?", "Winget Required", "YesNo", "Warning")
-    if ($msg -eq "Yes") {
-        Start-Process powershell -Verb RunAs -ArgumentList "-Command `\"Invoke-WebRequest https://raw.githubusercontent.com/asheroto/winget-installer/master/winget-install.ps1 -UseBasicParsing | iex`\""
-        
-        Start-Sleep -Seconds 10
-        $retries = 0
-        while (-not (Get-Command winget -ErrorAction SilentlyContinue) -and $retries -lt 10) {
-            Start-Sleep -Seconds 3
-            $retries++
-        }
+function Show-WingetHelp {
+    $helpForm = New-Object System.Windows.Forms.Form
+    $helpForm.Text = "Winget Not Found"
+    $helpForm.Size = New-Object System.Drawing.Size(600, 420)
+    $helpForm.StartPosition = "CenterScreen"
+    $helpForm.TopMost = $true
 
-        if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-            [System.Windows.Forms.MessageBox]::Show("Winget installation failed. Please try again manually.", "Error", "OK", "Error")
-            exit
-        } else {
-            [System.Windows.Forms.MessageBox]::Show("Winget installed successfully. You may now continue.", "Done", "OK", "Information")
-        }
-    } else {
-        exit
-    }
+    $textBox = New-Object System.Windows.Forms.TextBox
+    $textBox.Multiline = $true
+    $textBox.ReadOnly = $true
+    $textBox.ScrollBars = "Vertical"
+    $textBox.Font = New-Object System.Drawing.Font("Consolas", 9)
+    $textBox.Size = New-Object System.Drawing.Size(560, 280)
+    $textBox.Location = New-Object System.Drawing.Point(10, 10)
+    $textBox.Text = @"
+Do this if the GUI can't open or is stuck:
+
+=========================
+Winget Installation Help
+=========================
+
+To install Winget manually, run this in PowerShell as Administrator:
+
+powershell -Command "Invoke-WebRequest https://raw.githubusercontent.com/asheroto/winget-installer/master/winget-install.ps1 -UseBasicParsing | iex"
+
+That's it. After install, just run the 1 Click Software Installer again.
+
+If you're still having issues, make sure:
+- Your Windows is updated (Windows 10 1809+ or Windows 11)
+- Microsoft Store is working properly
+"@
+    $helpForm.Controls.Add($textBox)
+
+    $installButton = New-Object System.Windows.Forms.Button
+    $installButton.Text = "Install Winget Automatically"
+    $installButton.Size = New-Object System.Drawing.Size(220, 30)
+    $installButton.Location = New-Object System.Drawing.Point(10, 310)
+    $installButton.Add_Click({
+        Start-Process powershell -Verb RunAs -ArgumentList '-Command "Invoke-WebRequest https://raw.githubusercontent.com/asheroto/winget-installer/master/winget-install.ps1 -UseBasicParsing | iex"'
+        [System.Windows.Forms.MessageBox]::Show("Winget installation started. After install completes, close this window and try again.", "Winget Installing", "OK", "Information")
+    })
+    $helpForm.Controls.Add($installButton)
+
+    $closeButton = New-Object System.Windows.Forms.Button
+    $closeButton.Text = "Close"
+    $closeButton.Size = New-Object System.Drawing.Size(100, 30)
+    $closeButton.Location = New-Object System.Drawing.Point(470, 310)
+    $closeButton.Add_Click({ $helpForm.Close() })
+    $helpForm.Controls.Add($closeButton)
+
+    $helpForm.ShowDialog() | Out-Null
 }
 
-if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-    Install-Winget
-}
-
-# =============================
-# GUI Start
-# =============================
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "1-Click Software Installer"
@@ -126,6 +146,31 @@ $footer.Size = New-Object System.Drawing.Size(300, 20)
 $footer.LinkColor = "Blue"
 $footer.Add_Click({ Start-Process "https://github.com/adamrazali11" })
 $form.Controls.Add($footer)
+
+$searchButton.Add_Click({
+    $query = $searchBox.Text
+    if ($query -ne "") {
+        $progressBar.Visible = $true
+        $loadingLabel.Visible = $true
+        $form.Refresh()
+        try {
+            $results = winget search --name $query | Select-String '^[^\s]+\s+[^\s]+\s+.+'
+            $listBox.Items.Clear()
+            foreach ($line in $results) {
+                $parts = ($line.ToString() -split "\s{2,}")
+                if ($parts.Count -ge 2) {
+                    $name = $parts[0].Trim()
+                    $id = $parts[1].Trim()
+                    $listBox.Items.Add("$name | $id")
+                }
+            }
+        } catch {
+            Show-WingetHelp
+        }
+        $progressBar.Visible = $false
+        $loadingLabel.Visible = $false
+    }
+})
 
 $defaultApps = @(
     @{ Name = "Google Chrome"; Id = "Google.Chrome"; Category = "Browser" },
@@ -264,7 +309,7 @@ $installBtn.Add_Click({
         $id = ($item -split '\|')[1].Trim()
 
         # run installer
-        Start-Process powershell -Verb runAs -ArgumentList "winget install --id `"$id`" --silent --accept-package-agreements --accept-source-agreements"
+        Start-Process powershell -Verb RunAs -ArgumentList "Write-Host 'Installing: $name ($id)' -ForegroundColor Cyan; winget install --id `"$id`" --silent --accept-package-agreements --accept-source-agreements; Write-Host ''; pause"
 
         Start-Sleep -Seconds 5  # allow time for install (adjust if needed)
 
@@ -283,7 +328,4 @@ $installBtn.Add_Click({
     [System.Windows.Forms.MessageBox]::Show("✔ All install commands sent! You can find the apps by searching the Start Menu. Shortcut added to Desktop if found.", "Done", "OK", "Information")
 })
 
-
-$form.Topmost = $true
-$form.Add_Shown({ $form.Activate() })
 [void]$form.ShowDialog()
